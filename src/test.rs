@@ -1,0 +1,2 @@
+#[derive]
+mod tests {}
