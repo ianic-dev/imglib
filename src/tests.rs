@@ -55,3 +55,9 @@ fn rawpbmfileparsing() {
     let file2 = pmap::packpmap(file.clone());
     assert_eq!(file, file2);
 }
+#[test]
+fn placeholdername() {
+    use crate::pmap;
+    let v = pmap::parsepmap(vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0]);
+    panic!();
+}

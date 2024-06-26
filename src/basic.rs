@@ -1,3 +1,5 @@
+use std::usize;
+
 pub fn makeascii(mut num: usize) -> Vec<u8> {
     let mut out: Vec<u8> = vec![];
     while num > 0 {
@@ -32,4 +34,13 @@ pub fn packrow(row: &[u8]) -> Vec<u8> {
         }
     }
     packedrow
+}
+
+pub fn numfromascii(bytes: &[u8]) -> usize {
+    let mut n = 0;
+    for b in bytes {
+        n += (*b as usize) - 48;
+        n *= 10;
+    }
+    n / 10
 }

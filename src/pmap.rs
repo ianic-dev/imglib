@@ -1,7 +1,9 @@
-use crate::basic;
+use std::{error::Error, usize};
+
+use crate::{basic, Colourtype, ImgBuffer};
 #[derive(Debug, Clone, PartialEq)]
 pub struct PMapFile {
-    header: [u8; 2],
+    header: Vec<u8>,
     size: (usize, usize),
     plain: bool,
     pub body: Vec<u8>,
@@ -29,7 +31,7 @@ pub fn pbm_plain(mut file: Vec<u8>) -> ((usize, usize), Vec<u8>) {
 }
 
 pub fn parse_pmfile(rawfile: Vec<u8>) -> PMapFile {
-    let header: [u8; 2] = (&rawfile[0..2]).try_into().expect("header failed to read");
+    let header: Vec<u8> = (&rawfile[0..2]).try_into().expect("header failed to read");
     let filestr = String::from_utf8_lossy(&rawfile).to_string();
     let mut fileiter = filestr.split(|c| char::is_whitespace(c)).enumerate();
     fileiter.next();
@@ -60,6 +62,52 @@ pub fn parse_pmfile(rawfile: Vec<u8>) -> PMapFile {
         body,
     }
 }
+
+pub fn parsepbm(file: Vec<u8>, plain: bool) -> Result<ImgBuffer, &'static str> {
+    let ctype = match file[1] {
+        48 | 49 | 52 | 53 => Colourtype::Grayscale,
+        51 | 54 => Colourtype::Colour,
+        55 => return Err("this library has no support for the PAM format"),
+    };
+    let hasmaxval: bool = file[1] == 48 || file[1] == 49;
+    let mut state: usize = 1;
+    let mut width: usize;
+    let mut height: usize;
+    let mut marker: usize = 2;
+    for (i, byte) in file.iter().enumerate() {
+        match (state, *byte) {
+            (_, 35) => {
+                marker = state;
+                state = 0;
+            }
+            (0, 10 | 13) => {
+                state = marker;
+            }
+            (1, 48..=57) => {
+                state = marker;
+                marker = i;
+            }
+            (2, 9..=13 | 32) => {
+                width = basic::numfromascii(&file[marker..i]);
+                marker = 3;
+                state = 1;
+            }
+            (3, 9..=13 | 32) => {
+                height = basic::numfromascii(&file[marker..i]);
+                marker = i;
+                if hasmaxval {
+                    marker = 4;
+                    state = 1;
+                }
+            }
+        }
+    }
+    Ok(ImgBuffer {
+        size: (width, height),
+        c,
+    })
+}
+
 fn parseplain(bodyindex: usize, rawfile: Vec<u8>) -> Vec<u8> {
     let mut body: Vec<u8> = vec![];
     let filestr = String::from_utf8_lossy(&rawfile).to_string();
@@ -79,6 +127,7 @@ fn parseplain(bodyindex: usize, rawfile: Vec<u8>) -> Vec<u8> {
     }
     body
 }
+
 fn parseraw(length: usize, rawfile: Vec<u8>) -> Vec<u8> {
     let mut out: Vec<u8> = vec![];
     let mut state: u8 = 0;

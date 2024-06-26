@@ -9,15 +9,16 @@ pub struct RGB(u8, u8, u8);
 
 #[derive(Debug)]
 enum Colourtype {
-    Grayscale(u8),
-    GrayAlpha(u8),
-    Colour(u8),
-    ColourAlpha(u8),
+    Grayscale,
+    GrayAlpha,
+    Colour,
+    ColourAlpha,
 }
 
 #[derive(Debug)]
 pub struct ImgBuffer {
-    dim: (u32, u32),
+    size: (usize, usize),
     ctype: Colourtype,
+    double: bool,
     buffer: Vec<u8>,
 }
