@@ -1,0 +1,298 @@
+[4mHEXDUMP[24m(1)                                          User Commands                                          [4mHEXDUMP[24m(1)
+
+[1mNAME[0m
+       hexdump - display file contents in hexadecimal, decimal, octal, or ascii
+
+[1mSYNOPSIS[0m
+       [1mhexdump [4m[22moptions[24m [4mfile[24m ...
+
+       [1mhd [4m[22moptions[24m [4mfile[24m ...
+
+[1mDESCRIPTION[0m
+       The [1mhexdump [22mutility is a filter which displays the specified files, or standard input if no files are
+       specified, in a user-specified format.
+
+[1mOPTIONS[0m
+       Below, the [4mlength[24m and [4moffset[24m arguments may be followed by the multiplicative suffixes KiB (=1024), MiB
+       (=1024*1024), and so on for GiB, TiB, PiB, EiB, ZiB and YiB (the "iB" is optional, e.g., "K" has the same
+       meaning as "KiB"), or the suffixes KB (=1000), MB (=1000*1000), and so on for GB, TB, PB, EB, ZB and YB.
+
+       [1m-b[22m, [1m--one-byte-octal[0m
+           [4mOne-byte[24m [4moctal[24m [4mdisplay[24m. Display the input offset in hexadecimal, followed by sixteen space-separated,
+           three-column, zero-filled bytes of input data, in octal, per line.
+
+       [1m-X[22m, [1m--one-byte-hex[0m
+           [4mOne-byte[24m [4mhexadecimal[24m [4mdisplay[24m. Display the input offset in hexadecimal, followed by sixteen
+           space-separated, two-column, zero-filled bytes of input data, in hexadecimal, per line.
+
+       [1m-c[22m, [1m--one-byte-char[0m
+           [4mOne-byte[24m [4mcharacter[24m [4mdisplay[24m. Display the input offset in hexadecimal, followed by sixteen space-separated,
+           three-column, space-filled characters of input data per line.
+
+       [1m-C[22m, [1m--canonical[0m
+           [4mCanonical[24m [4mhex+ASCII[24m [4mdisplay[24m. Display the input offset in hexadecimal, followed by sixteen space-separated,
+           two-column, hexadecimal bytes, followed by the same sixteen bytes in [1m%_p [22mformat enclosed in [1m| [22mcharacters.
+           Invoking the program as [1mhd [22mimplies this option.
+
+       [1m-d[22m, [1m--two-bytes-decimal[0m
+           [4mTwo-byte[24m [4mdecimal[24m [4mdisplay[24m. Display the input offset in hexadecimal, followed by eight space-separated,
+           five-column, zero-filled, two-byte units of input data, in unsigned decimal, per line.
+
+       [1m-e[22m, [1m--format [4m[22mformat_string[0m
+           Specify a format string to be used for displaying data.
+
+       [1m-f[22m, [1m--format-file [4m[22mfile[0m
+           Specify a file that contains one or more newline-separated format strings. Empty lines and lines whose
+           first non-blank character is a hash mark (#) are ignored.
+
+       [1m-L[22m, [1m--color[22m[=[4mwhen[24m]
+           Accept color units for the output. The optional argument [4mwhen[24m can be [1mauto[22m, [1mnever [22mor [1malways[22m. If the [4mwhen[0m
+           argument is omitted, it defaults to [1mauto[22m. The colors can be disabled; for the current built-in default see
+           the [1m--help [22moutput. See also the [1mColors [22msubsection and the [1mCOLORS [22msection below.
+
+       [1m-n[22m, [1m--length [4m[22mlength[0m
+           Interpret only [4mlength[24m bytes of input.
+
+       [1m-o[22m, [1m--two-bytes-octal[0m
+           [4mTwo-byte[24m [4moctal[24m [4mdisplay[24m. Display the input offset in hexadecimal, followed by eight space-separated,
+           six-column, zero-filled, two-byte quantities of input data, in octal, per line.
+
+       [1m-s[22m, [1m--skip [4m[22moffset[0m
+           Skip [4moffset[24m bytes from the beginning of the input.
+
+       [1m-v[22m, [1m--no-squeezing[0m
+           The [1m-v [22moption causes [1mhexdump [22mto display all input data. Without the [1m-v [22moption, any number of groups of
+           output lines which would be identical to the immediately preceding group of output lines (except for the
+           input offsets), are replaced with a line comprised of a single asterisk.
+
+       [1m-x[22m, [1m--two-bytes-hex[0m
+           [4mTwo-byte[24m [4mhexadecimal[24m [4mdisplay[24m. Display the input offset in hexadecimal, followed by eight space-separated,
+           four-column, zero-filled, two-byte quantities of input data, in hexadecimal, per line.
+
+       [1m-h[22m, [1m--help[0m
+           Display help text and exit.
+
+       [1m-V[22m, [1m--version[0m
+           Print version and exit.
+
+       For each input file, [1mhexdump [22msequentially copies the input to standard output, transforming the data according
+       to the format strings specified by the [1m-e [22mand [1m-f [22moptions, in the order that they were specified.
+
+[1mFORMATS[0m
+       A format string contains any number of format units, separated by whitespace. A format unit contains up to
+       three items: an iteration count, a byte count, and a format.
+
+       The iteration count is an optional positive integer, which defaults to one. Each format is applied iteration
+       count times.
+
+       The byte count is an optional positive integer. If specified it defines the number of bytes to be interpreted
+       by each iteration of the format.
+
+       If an iteration count and/or a byte count is specified, a single slash must be placed after the iteration
+       count and/or before the byte count to disambiguate them. Any whitespace before or after the slash is ignored.
+
+       The format is required and must be surrounded by double quote (" ") marks. It is interpreted as a
+       fprintf-style format string (see [1mfprintf[22m(3)), with the following exceptions:
+
+       1.
+           An asterisk (*) may not be used as a field width or precision.
+
+       2.
+           A byte count or field precision [4mis[24m required for each [1ms [22mconversion character (unlike the [1mfprintf[22m(3) default
+           which prints the entire string if the precision is unspecified).
+
+       3.
+           The conversion characters [1mh[22m, [1ml[22m, [1mn[22m, [1mp[22m, and [1mq [22mare not supported.
+
+       4.
+           The single character escape sequences described in the C standard are supported:
+          ┌───────────────────┬────┐
+          │                   │    │
+          │ NULL              │ \0 │
+          ├───────────────────┼────┤
+          │                   │    │
+          │ <alert character> │ \a │
+          ├───────────────────┼────┤
+          │                   │    │
+          │ <backspace>       │ \b │
+          ├───────────────────┼────┤
+          │                   │    │
+          │ <form-feed>       │ \f │
+          ├───────────────────┼────┤
+          │                   │    │
+          │ <newline>         │ \n │
+          ├───────────────────┼────┤
+          │                   │    │
+          │ <carriage return> │ \r │
+          ├───────────────────┼────┤
+          │                   │    │
+          │ <tab>             │ \t │
+          ├───────────────────┼────┤
+          │                   │    │
+          │ <vertical tab>    │ \v │
+          └───────────────────┴────┘
+
+   [1mConversion strings[0m
+       The [1mhexdump [22mutility also supports the following additional conversion strings.
+
+       [1m_a[dox][0m
+           Display the input offset, cumulative across input files, of the next byte to be displayed. The
+           appended characters [1md[22m, [1mo[22m, and [1mx [22mspecify the display base as decimal, octal or hexadecimal
+           respectively.
+
+       [1m_A[dox][0m
+           Almost identical to the [1m_a [22mconversion string except that it is only performed once, when all of
+           the input data has been processed.
+
+       [1m_c[0m
+           Output characters in the default character set. Non-printing characters are displayed in
+           three-character, zero-padded octal, except for those representable by standard escape notation
+           (see above), which are displayed as two-character strings.
+
+       [1m_p[0m
+           Output characters in the default character set. Non-printing characters are displayed as a single
+           '[1m.[22m'.
+
+       [1m_u[0m
+           Output US ASCII characters, with the exception that control characters are displayed using the
+           following, lower-case, names. Characters greater than 0xff, hexadecimal, are displayed as
+           hexadecimal strings.
+          ┌─────────┬─────────┬─────────┬─────────┬─────────┬─────────┐
+          │         │         │         │         │         │         │
+          │ 000 nul │ 001 soh │ 002 stx │ 003 etx │ 004 eot │ 005 enq │
+          ├─────────┼─────────┼─────────┼─────────┼─────────┼─────────┤
+          │         │         │         │         │         │         │
+          │ 006 ack │ 007 bel │ 008 bs  │ 009 ht  │ 00A lf  │ 00B vt  │
+          ├─────────┼─────────┼─────────┼─────────┼─────────┼─────────┤
+          │         │         │         │         │         │         │
+          │ 00C ff  │ 00D cr  │ 00E so  │ 00F si  │ 010 dle │ 011 dc1 │
+          ├─────────┼─────────┼─────────┼─────────┼─────────┼─────────┤
+          │         │         │         │         │         │         │
+          │ 012 dc2 │ 013 dc3 │ 014 dc4 │ 015 nak │ 016 syn │ 017 etb │
+          ├─────────┼─────────┼─────────┼─────────┼─────────┼─────────┤
+          │         │         │         │         │         │         │
+          │ 018 can │ 019 em  │ 01A sub │ 01B esc │ 01C fs  │ 01D gs  │
+          ├─────────┼─────────┼─────────┼─────────┼─────────┼─────────┤
+          │         │         │         │         │         │         │
+          │ 01E rs  │ 01F us  │ 0FF del │         │         │         │
+          └─────────┴─────────┴─────────┴─────────┴─────────┴─────────┘
+
+   [1mColors[0m
+       When put at the end of a format specifier, [1mhexdump [22mhighlights the respective string with the
+       color specified. Conditions, if present, are evaluated prior to highlighting.
+
+       [1m_L[color_unit_1,color_unit_2,...,color_unit_n][0m
+
+       The full syntax of a color unit is as follows:
+
+       [1m[!]COLOR[:VALUE][@OFFSET_START[-END]][0m
+
+       [1m![0m
+           Negate the condition. Please note that it only makes sense to negate a unit if both a
+           value/string and an offset are specified. In that case the respective output string will
+           be highlighted if and only if the value/string does not match the one at the offset.
+
+       [1mCOLOR[0m
+           One of the 8 basic shell colors.
+
+       [1mVALUE[0m
+           A value to be matched specified in hexadecimal, or octal base, or as a string. Please note
+           that the usual C escape sequences are not interpreted by [1mhexdump [22minside the color_units.
+
+       [1mOFFSET[0m
+           An offset or an offset range at which to check for a match. Please note that lone
+           OFFSET_START uses the same value as END offset.
+
+   [1mCounters[0m
+       The default and supported byte counts for the conversion characters are as follows:
+
+       [1m%_c[22m, [1m%_p[22m, [1m%_u[22m, [1m%c[0m
+           One byte counts only.
+
+       [1m%d[22m, [1m%i[22m, [1m%o[22m, [1m%u[22m, [1m%X[22m, [1m%x[0m
+           Four byte default, one, two and four byte counts supported.
+
+       [1m%E[22m, [1m%e[22m, [1m%f[22m, [1m%G[22m, [1m%g[0m
+           Eight byte default, four byte counts supported.
+
+       The amount of data interpreted by each format string is the sum of the data required by each
+       format unit, which is the iteration count times the byte count, or the iteration count times
+       the number of bytes required by the format if the byte count is not specified.
+
+       The input is manipulated in [4mblocks[24m, where a block is defined as the largest amount of data
+       specified by any format string. Format strings interpreting less than an input block’s worth
+       of data, whose last format unit both interprets some number of bytes and does not have a
+       specified iteration count, have the iteration count incremented until the entire input block
+       has been processed or there is not enough data remaining in the block to satisfy the format
+       string.
+
+       If, either as a result of user specification or [1mhexdump [22mmodifying the iteration count as
+       described above, an iteration count is greater than one, no trailing whitespace characters are
+       output during the last iteration.
+
+       It is an error to specify a byte count as well as multiple conversion characters or strings
+       unless all but one of the conversion characters or strings is [1m_a [22mor [1m_A[22m.
+
+       If, as a result of the specification of the [1m-n [22moption or end-of-file being reached, input data
+       only partially satisfies a format string, the input block is zero-padded sufficiently to
+       display all available data (i.e., any format units overlapping the end of data will display
+       some number of the zero bytes).
+
+       Further output by such format strings is replaced by an equivalent number of spaces. An
+       equivalent number of spaces is defined as the number of spaces output by an [1ms [22mconversion
+       character with the same field width and precision as the original conversion character or
+       conversion string but with any '[1m+[22m', ' ', '[1m#[22m' conversion flag characters removed, and
+       referencing a NULL string.
+
+       If no format strings are specified, the default display is very similar to the [1m-x [22moutput
+       format (the [1m-x [22moption causes more space to be used between format units than in the default
+       output).
+
+[1mEXIT STATUS[0m
+       [1mhexdump [22mexits 0 on success and > 0 if an error occurred.
+
+[1mCONFORMING TO[0m
+       The [1mhexdump [22mutility is expected to be IEEE Std 1003.2 ("POSIX.2") compatible.
+
+[1mEXAMPLES[0m
+       Display the input in perusal format:
+
+              "%06.6_ao "  12/1 "%3_u "
+              "\t" "%_p "
+              "\n"
+
+       Implement the [1m-x [22moption:
+
+              "%07.7_Ax\n"
+              "%07.7_ax  " 8/2 "%04x " "\n"
+
+       MBR Boot Signature example: Highlight the addresses cyan and the bytes at offsets 510 and 511
+       green if their value is 0xAA55, red otherwise.
+
+              "%07.7_Ax_L[cyan]\n"
+              "%07.7_ax_L[cyan]  " 8/2 "   %04x_L[green:0xAA55@510-511,!red:0xAA55@510-511] " "\n"
+
+[1mCOLORS[0m
+       The output colorization is implemented by [1mterminal-colors.d[22m(5) functionality. Implicit
+       coloring can be disabled by an empty file
+
+          [4m/etc/terminal-colors.d/hexdump.disable[0m
+
+       for the [1mhexdump [22mcommand or for all tools by
+
+          [4m/etc/terminal-colors.d/disable[0m
+
+       The user-specific [4m$XDG_CONFIG_HOME/terminal-colors.d[24m or [4m$HOME/.config/terminal-colors.d[0m
+       overrides the global setting.
+
+       Note that the output colorization may be enabled by default, and in this case
+       [4mterminal-colors.d[24m directories do not have to exist yet.
+
+[1mREPORTING BUGS[0m
+       For bug reports, use the issue tracker at [34mhttps://github.com/util-linux/util-linux/issues[0m.
+
+[1mAVAILABILITY[0m
+       The [1mhexdump [22mcommand is part of the util-linux package which can be downloaded from [34mLinux[0m
+       [34mKernel Archive [0m<https://www.kernel.org/pub/linux/utils/util-linux/>.
+
+util-linux 2.40.1                                     2024-05-06                                           [4mHEXDUMP[24m(1)
