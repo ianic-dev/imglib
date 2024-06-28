@@ -1,6 +1,7 @@
+use crate::{basic, pmap};
+
 #[test]
 fn testbitpack() {
-    use crate::basic;
     let bytes: Vec<u8> = vec![1, 1, 1, 1, 1, 1, 1, 1];
     let byte: u8 = 255;
     assert_eq!(basic::packbits(&bytes[..]), byte);
@@ -24,7 +25,6 @@ fn testbitpack() {
 
 #[test]
 fn testrowpack() {
-    use crate::basic;
     let row: Vec<u8> = vec![1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0];
     let bytes: Vec<u8> = vec![255, 0];
     assert_eq!(bytes, basic::packrow(&row[..]));
@@ -47,17 +47,17 @@ fn testrowpack() {
 }
 
 #[test]
-fn rawpbmfileparsing() {
-    use crate::pmap;
+fn pnmgrayfileparsing() {
     use std::fs;
-    // packing a packed pbm does not alter it
-    let file = pmap::parse_pmfile(fs::read("testraw.pbm").unwrap());
-    let file2 = pmap::packpmap(file.clone());
-    assert_eq!(file, file2);
+    // checks the same file as different grayscale pnm files returns the same ImgBuffer
+    let plainfilepgm = pmap::parsepnm(fs::read("Pplain.pgm").unwrap()).unwrap();
+    let plainfilepbm = pmap::parsepnm(fs::read("Pplain.pbm").unwrap()).unwrap();
+    let rawfilepgm = pmap::parsepnm(fs::read("Praw.pgm").unwrap()).unwrap();
+    let rawfilepbm = pmap::parsepnm(fs::read("Praw.pbm").unwrap()).unwrap();
+    assert_eq!(plainfilepbm, rawfilepbm);
+    assert_eq!(rawfilepbm, rawfilepgm);
+    assert_eq!(plainfilepgm, rawfilepgm);
 }
+
 #[test]
-fn placeholdername() {
-    use crate::pmap;
-    let v = pmap::parsepmap(vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0]);
-    panic!();
-}
+fn colourandback() {}

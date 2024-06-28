@@ -1,159 +1,215 @@
-use std::{error::Error, usize};
-
 use crate::{basic, Colourtype, ImgBuffer};
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct PMapFile {
     header: Vec<u8>,
-    size: (usize, usize),
+    size: (u32, u32),
     plain: bool,
     pub body: Vec<u8>,
 }
 
-pub fn pbm_plain(mut file: Vec<u8>) -> ((usize, usize), Vec<u8>) {
-    let filestr = String::from_utf8(file.clone()).unwrap();
-    // println!("{filestr}");
-    let filesplt = filestr.split(&[' ', '\n', '\t']);
-    let mut filevec = vec![];
-    for elem in filesplt {
-        filevec.push(elem);
+pub fn parsepnm(file: Vec<u8>) -> Result<ImgBuffer, &'static str> {
+    println!("{}{}", file[0], file[1]);
+    if file[0] != 80 {
+        println!("no P");
+        return Err("this is not a valid netpbm format");
     }
-    let size: (usize, usize) = (
-        filevec[1].parse().expect("no valid width found"),
-        filevec[2].parse().expect("no valid height found"),
-    );
-    file.retain(|x| (*x == 48 || *x == 49));
-    let mut outfile: Vec<u8> = vec![];
-    for i in (file.len() - (size.0 * size.1))..file.len() {
-        // println!("{i}");
-        outfile.push(file[i] - 48);
-    }
-    (size, outfile)
-}
-
-pub fn parse_pmfile(rawfile: Vec<u8>) -> PMapFile {
-    let header: Vec<u8> = (&rawfile[0..2]).try_into().expect("header failed to read");
-    let filestr = String::from_utf8_lossy(&rawfile).to_string();
-    let mut fileiter = filestr.split(|c| char::is_whitespace(c)).enumerate();
-    fileiter.next();
-    let size: (usize, usize) = (
-        (fileiter.next().unwrap())
-            .1
-            .parse()
-            .expect("invalid width "),
-        (fileiter.next().unwrap())
-            .1
-            .parse()
-            .expect("invalid height"),
-    );
-    let (bodyindex, _) = fileiter
-        .next()
-        .expect("file has no detected body, is not long enough");
-    println!("bodyindex {}", bodyindex);
-    let plain = header[1] & 1 != 0;
-    let body: Vec<u8> = if !plain {
-        parseraw(size.0 * size.1, rawfile)
-    } else {
-        parseplain(bodyindex, rawfile)
-    };
-    PMapFile {
-        header,
-        size,
-        plain,
-        body,
-    }
-}
-
-pub fn parsepbm(file: Vec<u8>, plain: bool) -> Result<ImgBuffer, &'static str> {
     let ctype = match file[1] {
-        48 | 49 | 52 | 53 => Colourtype::Grayscale,
+        49 | 50 | 52 | 53 => Colourtype::Grayscale,
         51 | 54 => Colourtype::Colour,
         55 => return Err("this library has no support for the PAM format"),
+        _ => return Err("this is not a valid netpbm format"),
     };
-    let hasmaxval: bool = file[1] == 48 || file[1] == 49;
+    let hasmaxval: bool = !(file[1] == 49 || file[1] == 52);
+    println!("hasmaxval = {}", hasmaxval);
     let mut state: usize = 1;
-    let mut width: usize;
-    let mut height: usize;
+    let mut width: u32 = 1;
+    let mut height: u32 = 1;
     let mut marker: usize = 2;
-    for (i, byte) in file.iter().enumerate() {
-        match (state, *byte) {
-            (_, 35) => {
-                marker = state;
-                state = 0;
-            }
-            (0, 10 | 13) => {
-                state = marker;
-            }
-            (1, 48..=57) => {
-                state = marker;
-                marker = i;
-            }
-            (2, 9..=13 | 32) => {
-                width = basic::numfromascii(&file[marker..i]);
-                marker = 3;
-                state = 1;
-            }
-            (3, 9..=13 | 32) => {
-                height = basic::numfromascii(&file[marker..i]);
-                marker = i;
-                if hasmaxval {
-                    marker = 4;
+    let mut backup: usize = 0;
+    let mut cdepth: u32 = 256;
+    'header: for (i, byte) in file.iter().enumerate() {
+        if i > 1 {
+            match (state, *byte) {
+                (_, 35) => {
+                    println!("comment in state {}", state);
+                    backup = marker;
+                    marker = state;
+                    state = 0;
+                }
+                (0, 10 | 13) => {
+                    state = marker;
+                    marker = backup;
+                    println!("return to state {} after comment", state);
+                }
+                (1, 48..=57) => {
+                    println!("entering state {}", marker);
+                    state = marker;
+                    marker = i;
+                }
+                (2, 9..=13 | 32) => {
+                    width = basic::numfromascii(&file[marker..i]);
+                    println!("width found: is {}", width);
+                    marker = 3;
                     state = 1;
+                }
+                (3, 9..=13 | 32) => {
+                    height = basic::numfromascii(&file[marker..i]);
+                    println!("height found: is {}", height);
+                    if hasmaxval {
+                        marker = 4;
+                        state = 1;
+                    } else {
+                        marker = i + 1;
+                        break 'header;
+                    }
+                }
+                (4, 9..=13 | 32) => {
+                    cdepth = basic::numfromascii(&file[marker..i]);
+                    println!("maxval found: is {}", cdepth);
+                    marker = i + 1;
+                    break 'header;
+                }
+                (0 | 1 | 2 | 3 | 4, _) => {}
+                (_, _) => {
+                    println!("state {} byte {}", state, byte);
+                    return Err("I have no idea how you managed to land in this invalid state");
                 }
             }
         }
     }
+    println!("body starts at byte {} which is {}", marker, file[marker]);
+    let body = match file[1] {
+        49 => readbody::rdbodypbmplain(file, marker),
+        50 => readbody::rdbodypgmplain(file, marker, cdepth),
+        51 => readbody::rdbodyppmplain(file, marker, cdepth),
+        52 => readbody::rdbodypbmraw(file, marker, (width, height)),
+        53 => readbody::rdbodypgmraw(file, marker, (width, height), cdepth),
+        54 => readbody::rdbodyppmraw(file, marker, (width, height), cdepth),
+        _ => return Err("this is not a valid netpbm format"),
+    };
+
     Ok(ImgBuffer {
         size: (width, height),
-        c,
+        ctype,
+        body,
     })
 }
 
-fn parseplain(bodyindex: usize, rawfile: Vec<u8>) -> Vec<u8> {
-    let mut body: Vec<u8> = vec![];
-    let filestr = String::from_utf8_lossy(&rawfile).to_string();
-    let fileiter = filestr.split(|c| char::is_whitespace(c));
-    for (ind, byte) in fileiter.enumerate() {
-        let mut valid = true;
-        for c in byte.as_bytes() {
-            if (*c as char).is_whitespace() {
-                valid = false;
-            }
-        }
-        println!("char: {}, valid: {}", byte, valid);
-        if ind >= bodyindex && valid && (byte != "") {
-            let n: u8 = byte.parse().expect("Invalid ASCII number in body");
-            body.push(n)
-        }
-    }
-    body
-}
+mod readbody {
+    use crate::basic;
 
-fn parseraw(length: usize, rawfile: Vec<u8>) -> Vec<u8> {
-    let mut out: Vec<u8> = vec![];
-    let mut state: u8 = 0;
-    let mut start: usize = 0;
-    for (i, byte) in rawfile.iter().enumerate() {
-        if i >= start + length {
-            break;
+    pub fn rdbodypbmraw(file: Vec<u8>, start: usize, size: (u32, u32)) -> Vec<u8> {
+        let mut paddedwidth = size.0 as usize / 8;
+        let taillen = ((size.0 - 1) % 8) + 1;
+        if taillen != 8 {
+            paddedwidth += 1;
         }
-        match (state, *byte) {
-            (8.., b) => out.push(b),
-            (7.., c) => {
-                out.push(c);
-                start = i;
-                state += 1
+        let mut body: Vec<u8> = vec![];
+        for (i, byte) in file[start..].iter().enumerate() {
+            let b = *byte;
+            if i % paddedwidth == paddedwidth - 1 {
+                for j in 0..taillen {
+                    body.push((1 - ((b >> (7 - j)) & 1)) * 255);
+                }
+            } else {
+                for j in 0..8 {
+                    body.push((1 - ((b >> (7 - j)) & 1)) * 255);
+                }
             }
-            (0, 0x50)
-            | (1, 48..=57)
-            | (2, 9..=13 | 32)
-            | (3, 48..=57)
-            | (4, 9..=13 | 32)
-            | (5, 48..=57)
-            | (6, 9..=13 | 32) => state += 1,
-            (_, _) => {}
         }
+        body
     }
-    out
+
+    pub fn rdbodypgmraw(file: Vec<u8>, start: usize, size: (u32, u32), maxval: u32) -> Vec<u8> {
+        let mut body: Vec<u8> = vec![];
+        let double = maxval > 255;
+        for (i, byte) in file[start..(start + size.0 as usize * size.1 as usize)]
+            .iter()
+            .enumerate()
+        {
+            if !double || i % 2 == 0 {
+                body.push(*byte);
+            }
+        }
+        body
+    }
+
+    pub fn rdbodyppmraw(file: Vec<u8>, start: usize, size: (u32, u32), maxval: u32) -> Vec<u8> {
+        let mut body: Vec<u8> = vec![];
+        let double = maxval > 255;
+        for (i, byte) in file[start..(start + 3 * size.0 as usize * size.1 as usize)]
+            .iter()
+            .enumerate()
+        {
+            if !double || i % 2 == 0 {
+                body.push(*byte);
+            }
+        }
+        body
+    }
+
+    pub fn rdbodypbmplain(file: Vec<u8>, start: usize) -> Vec<u8> {
+        let mut body: Vec<u8> = vec![];
+        for byte in (file[start..]).iter() {
+            if *byte == 48 || *byte == 49 {
+                body.push(255 * (49 - *byte));
+            }
+        }
+        body
+    }
+
+    pub fn rdbodypgmplain(file: Vec<u8>, start: usize, maxval: u32) -> Vec<u8> {
+        let double = maxval > 255;
+        let mut body: Vec<u8> = vec![];
+        let mut state: char = 'w';
+        let mut marker = 0;
+        let mut count = 0;
+        for (i, byte) in (file[start..]).iter().enumerate() {
+            match (state, *byte) {
+                ('w', 48..=57) => {
+                    marker = i;
+                    state = 'n'
+                }
+                ('n', 9..=13 | 32) => {
+                    if count % 2 == 0 || !double {
+                        body.push(basic::numfromascii(&file[(marker + start)..(i + start)]) as u8);
+                    }
+                    state = 'w';
+                    count += 1;
+                }
+                ('w' | 'n', _) => {}
+                (_, _) => panic!("you somehow broke this sort-of state machine"),
+            }
+        }
+        body
+    }
+
+    pub fn rdbodyppmplain(file: Vec<u8>, start: usize, maxval: u32) -> Vec<u8> {
+        let double = maxval > 255;
+        let mut body: Vec<u8> = vec![];
+        let mut state: char = 'w';
+        let mut marker = 0;
+        let mut count = 0;
+        for (i, byte) in (file[start..]).iter().enumerate() {
+            match (state, *byte) {
+                ('w', 48..=57) => {
+                    marker = i;
+                    state = 'n'
+                }
+                ('n', 9..=13 | 32) => {
+                    if count % 2 == 0 || !double {
+                        body.push(basic::numfromascii(&file[marker..i]) as u8);
+                    }
+                    state = 'w';
+                    count += 1;
+                }
+                ('w' | 'n', _) => {}
+                (_, _) => panic!("you somehow broke this sort-of state machine"),
+            }
+        }
+        body
+    }
 }
 
 pub fn assemblepmfile(filestruct: PMapFile) -> Vec<u8> {
@@ -162,11 +218,11 @@ pub fn assemblepmfile(filestruct: PMapFile) -> Vec<u8> {
         file.push(byte);
     }
     file.push(10);
-    for digit in basic::makeascii(filestruct.size.0) {
+    for digit in basic::makeascii(filestruct.size.0 as usize) {
         file.push(digit);
     }
     file.push(32);
-    for digit in basic::makeascii(filestruct.size.1) {
+    for digit in basic::makeascii(filestruct.size.1 as usize) {
         file.push(digit);
     }
     file.push(10);
@@ -174,26 +230,5 @@ pub fn assemblepmfile(filestruct: PMapFile) -> Vec<u8> {
         file.push(byte);
     }
     file.push(10);
-    file
-}
-
-pub fn packpmap(plainfile: PMapFile) -> PMapFile {
-    if plainfile.header == [80, 49] {
-        packpbm(plainfile)
-    } else {
-        plainfile
-    }
-}
-
-pub fn packpbm(mut file: PMapFile) -> PMapFile {
-    let mut packedbody: Vec<u8> = vec![];
-    for y in 0..file.size.1 {
-        let row = basic::packrow(&file.body[file.size.0 * y..file.size.0 * (y + 1)]);
-        for elem in row {
-            packedbody.push(elem);
-        }
-    }
-    file.body = packedbody;
-    file.plain = false;
     file
 }
