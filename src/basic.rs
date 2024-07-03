@@ -1,7 +1,9 @@
-use std::usize;
-
-pub fn makeascii(mut num: usize) -> Vec<u8> {
+pub fn makeascii(mut num: u32) -> Vec<u8> {
     let mut out: Vec<u8> = vec![];
+    if num == 0 {
+        out.push(48);
+        return out;
+    }
     while num > 0 {
         out.push((num % 10 + 48) as u8);
         num /= 10;

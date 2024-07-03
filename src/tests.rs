@@ -1,4 +1,9 @@
-use crate::{basic, pmap};
+use std::fs;
+
+use crate::{
+    basic,
+    pmap::{self, makepbm},
+};
 
 #[test]
 fn testbitpack() {
@@ -60,4 +65,48 @@ fn pnmgrayfileparsing() {
 }
 
 #[test]
-fn colourandback() {}
+fn readwrite() {
+    let plainfilepgm = fs::read("Pplain.pgm").unwrap();
+    let plainfilepbm = fs::read("Pplain.pbm").unwrap();
+    let rawfilepgm = fs::read("Praw.pgm").unwrap();
+    let rawfilepbm = fs::read("Praw.pbm").unwrap();
+    assert_eq!(
+        plainfilepgm,
+        pmap::writepnm(
+            pmap::makepgm(pmap::parsepnm(plainfilepgm.clone()).unwrap()),
+            true
+        )
+    );
+    assert_eq!(
+        plainfilepbm,
+        pmap::writepnm(
+            pmap::makepbm(pmap::parsepnm(plainfilepbm.clone()).unwrap(), Some(128)),
+            true
+        )
+    );
+    assert_eq!(
+        rawfilepgm,
+        pmap::writepnm(
+            pmap::makepgm(pmap::parsepnm(plainfilepgm.clone()).unwrap()),
+            false
+        )
+    );
+    assert_eq!(
+        rawfilepbm,
+        pmap::writepnm(
+            pmap::makepbm(pmap::parsepnm(plainfilepbm.clone()).unwrap(), Some(128)),
+            false
+        )
+    );
+}
+
+#[test]
+fn imgbufferlen() {
+    let testimg = pmap::parsepnm(fs::read("colourtest.ppm").unwrap()).unwrap();
+    let testlen = testimg.body.len();
+    let pimg = testimg.tograyscale();
+    let len2 = pimg.body.len();
+    assert_eq!(testlen, len2 * 3);
+    let pbm = makepbm(pimg, Some(128));
+    assert_eq!(len2, pbm.body.len())
+}

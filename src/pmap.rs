@@ -1,15 +1,107 @@
-use crate::{basic, Colourtype, ImgBuffer};
+use crate::{basic, imgbuff::ImgBuffer, Colourtype};
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct PMapFile {
-    header: Vec<u8>,
+mod makebody;
+mod readbody;
+
+#[derive(Debug, PartialEq)]
+pub enum PNMtype {
+    PBM,
+    PGM,
+    PPM,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct PNMap {
+    ident: PNMtype,
     size: (u32, u32),
-    plain: bool,
     pub body: Vec<u8>,
+}
+impl PNMap {
+    pub fn new(ident: PNMtype, size: (u32, u32), body: Vec<u8>) -> PNMap {
+        match ident {
+            PNMtype::PBM => assert_eq!(body.len(), size.0 as usize * size.1 as usize),
+            PNMtype::PGM => assert_eq!(body.len(), size.0 as usize * size.1 as usize),
+            PNMtype::PPM => assert_eq!(body.len(), 3 * size.0 as usize * size.1 as usize),
+        }
+        PNMap { ident, size, body }
+    }
+}
+
+pub fn makepbm(anyimage: ImgBuffer, treshold: Option<u32>) -> PNMap {
+    let treshold = treshold.unwrap_or(128);
+    let image = anyimage.rmalpha().tograyscale();
+    assert_eq!(image.ctype, Colourtype::Grayscale);
+    let ident = PNMtype::PBM;
+    let mut body: Vec<u8> = vec![];
+    for b in image.body {
+        if b as u32 >= treshold {
+            body.push(0);
+        } else {
+            body.push(1);
+        }
+    }
+    PNMap::new(ident, image.size, body)
+}
+
+pub fn makepgm(anyimage: ImgBuffer) -> PNMap {
+    let image = anyimage.rmalpha().tograyscale();
+    assert_eq!(image.ctype, Colourtype::Grayscale);
+    let ident = PNMtype::PGM;
+    PNMap::new(ident, image.size, image.body)
+}
+
+pub fn writepnm(image: PNMap, plain: bool) -> Vec<u8> {
+    let mut file: Vec<u8> = vec![80];
+    match (&image.ident, plain) {
+        (PNMtype::PBM, true) => file.push(49),
+        (PNMtype::PGM, true) => file.push(50),
+        (PNMtype::PPM, true) => file.push(51),
+        (PNMtype::PBM, false) => file.push(52),
+        (PNMtype::PGM, false) => file.push(53),
+        (PNMtype::PPM, false) => file.push(54),
+    };
+    for b in String::from(
+        "\n# file written by ianic-dev's imglib, built referencing the netpbm documentation\n",
+    )
+    .as_bytes()
+    {
+        file.push(*b);
+    }
+    for b in basic::makeascii(image.size.0) {
+        file.push(b);
+    }
+    file.push(32);
+    for b in basic::makeascii(image.size.1) {
+        file.push(b);
+    }
+    file.push(10);
+    if image.ident != PNMtype::PBM {
+        for b in basic::makeascii(255) {
+            file.push(b);
+        }
+        file.push(10);
+    }
+    println!("{file:?}");
+    let body = match (&image.ident, plain) {
+        (PNMtype::PBM, true) => makebody::mkbodypbmplain(image),
+        (PNMtype::PGM, true) => makebody::mkbodypgmplain(image),
+        (PNMtype::PPM, true) => makebody::mkbodyppmplain(image),
+        (PNMtype::PBM, false) => makebody::mkbodypbmraw(image),
+        (PNMtype::PGM, false) => makebody::mkbodypgmraw(image),
+        (PNMtype::PPM, false) => makebody::mkbodyppmraw(image),
+    };
+    println!("{body:?}");
+    for b in body {
+        file.push(b);
+    }
+    if !plain {
+        file.push(10);
+    }
+    file
 }
 
 pub fn parsepnm(file: Vec<u8>) -> Result<ImgBuffer, &'static str> {
-    println!("{}{}", file[0], file[1]);
+    //println!("{}{}", file[0], file[1]);
     if file[0] != 80 {
         println!("no P");
         return Err("this is not a valid netpbm format");
@@ -21,7 +113,7 @@ pub fn parsepnm(file: Vec<u8>) -> Result<ImgBuffer, &'static str> {
         _ => return Err("this is not a valid netpbm format"),
     };
     let hasmaxval: bool = !(file[1] == 49 || file[1] == 52);
-    println!("hasmaxval = {}", hasmaxval);
+    //println!("hasmaxval = {}", hasmaxval);
     let mut state: usize = 1;
     let mut width: u32 = 1;
     let mut height: u32 = 1;
@@ -32,7 +124,7 @@ pub fn parsepnm(file: Vec<u8>) -> Result<ImgBuffer, &'static str> {
         if i > 1 {
             match (state, *byte) {
                 (_, 35) => {
-                    println!("comment in state {}", state);
+                    //println!("comment in state {}", state);
                     backup = marker;
                     marker = state;
                     state = 0;
@@ -40,34 +132,34 @@ pub fn parsepnm(file: Vec<u8>) -> Result<ImgBuffer, &'static str> {
                 (0, 10 | 13) => {
                     state = marker;
                     marker = backup;
-                    println!("return to state {} after comment", state);
+                    //println!("return to state {} after comment", state);
                 }
                 (1, 48..=57) => {
-                    println!("entering state {}", marker);
+                    //println!("entering state {}", marker);
                     state = marker;
                     marker = i;
                 }
                 (2, 9..=13 | 32) => {
                     width = basic::numfromascii(&file[marker..i]);
-                    println!("width found: is {}", width);
+                    //println!("width found: is {}", width);
                     marker = 3;
                     state = 1;
                 }
                 (3, 9..=13 | 32) => {
                     height = basic::numfromascii(&file[marker..i]);
-                    println!("height found: is {}", height);
+                    //println!("height found: is {}", height);
                     if hasmaxval {
                         marker = 4;
                         state = 1;
                     } else {
-                        marker = i + 1;
+                        marker = i;
                         break 'header;
                     }
                 }
                 (4, 9..=13 | 32) => {
                     cdepth = basic::numfromascii(&file[marker..i]);
-                    println!("maxval found: is {}", cdepth);
-                    marker = i + 1;
+                    //println!("maxval found: is {}", cdepth);
+                    marker = i;
                     break 'header;
                 }
                 (0 | 1 | 2 | 3 | 4, _) => {}
@@ -78,8 +170,8 @@ pub fn parsepnm(file: Vec<u8>) -> Result<ImgBuffer, &'static str> {
             }
         }
     }
-    println!("body starts at byte {} which is {}", marker, file[marker]);
-    let body = match file[1] {
+    //println!("body starts at byte {} which is {}", marker, file[marker]);
+    let mut body = match file[1] {
         49 => readbody::rdbodypbmplain(file, marker),
         50 => readbody::rdbodypgmplain(file, marker, cdepth),
         51 => readbody::rdbodyppmplain(file, marker, cdepth),
@@ -88,147 +180,8 @@ pub fn parsepnm(file: Vec<u8>) -> Result<ImgBuffer, &'static str> {
         54 => readbody::rdbodyppmraw(file, marker, (width, height), cdepth),
         _ => return Err("this is not a valid netpbm format"),
     };
+    body = dbg!(body);
+    println!("{}", body.len());
 
-    Ok(ImgBuffer {
-        size: (width, height),
-        ctype,
-        body,
-    })
-}
-
-mod readbody {
-    use crate::basic;
-
-    pub fn rdbodypbmraw(file: Vec<u8>, start: usize, size: (u32, u32)) -> Vec<u8> {
-        let mut paddedwidth = size.0 as usize / 8;
-        let taillen = ((size.0 - 1) % 8) + 1;
-        if taillen != 8 {
-            paddedwidth += 1;
-        }
-        let mut body: Vec<u8> = vec![];
-        for (i, byte) in file[start..].iter().enumerate() {
-            let b = *byte;
-            if i % paddedwidth == paddedwidth - 1 {
-                for j in 0..taillen {
-                    body.push((1 - ((b >> (7 - j)) & 1)) * 255);
-                }
-            } else {
-                for j in 0..8 {
-                    body.push((1 - ((b >> (7 - j)) & 1)) * 255);
-                }
-            }
-        }
-        body
-    }
-
-    pub fn rdbodypgmraw(file: Vec<u8>, start: usize, size: (u32, u32), maxval: u32) -> Vec<u8> {
-        let mut body: Vec<u8> = vec![];
-        let double = maxval > 255;
-        for (i, byte) in file[start..(start + size.0 as usize * size.1 as usize)]
-            .iter()
-            .enumerate()
-        {
-            if !double || i % 2 == 0 {
-                body.push(*byte);
-            }
-        }
-        body
-    }
-
-    pub fn rdbodyppmraw(file: Vec<u8>, start: usize, size: (u32, u32), maxval: u32) -> Vec<u8> {
-        let mut body: Vec<u8> = vec![];
-        let double = maxval > 255;
-        for (i, byte) in file[start..(start + 3 * size.0 as usize * size.1 as usize)]
-            .iter()
-            .enumerate()
-        {
-            if !double || i % 2 == 0 {
-                body.push(*byte);
-            }
-        }
-        body
-    }
-
-    pub fn rdbodypbmplain(file: Vec<u8>, start: usize) -> Vec<u8> {
-        let mut body: Vec<u8> = vec![];
-        for byte in (file[start..]).iter() {
-            if *byte == 48 || *byte == 49 {
-                body.push(255 * (49 - *byte));
-            }
-        }
-        body
-    }
-
-    pub fn rdbodypgmplain(file: Vec<u8>, start: usize, maxval: u32) -> Vec<u8> {
-        let double = maxval > 255;
-        let mut body: Vec<u8> = vec![];
-        let mut state: char = 'w';
-        let mut marker = 0;
-        let mut count = 0;
-        for (i, byte) in (file[start..]).iter().enumerate() {
-            match (state, *byte) {
-                ('w', 48..=57) => {
-                    marker = i;
-                    state = 'n'
-                }
-                ('n', 9..=13 | 32) => {
-                    if count % 2 == 0 || !double {
-                        body.push(basic::numfromascii(&file[(marker + start)..(i + start)]) as u8);
-                    }
-                    state = 'w';
-                    count += 1;
-                }
-                ('w' | 'n', _) => {}
-                (_, _) => panic!("you somehow broke this sort-of state machine"),
-            }
-        }
-        body
-    }
-
-    pub fn rdbodyppmplain(file: Vec<u8>, start: usize, maxval: u32) -> Vec<u8> {
-        let double = maxval > 255;
-        let mut body: Vec<u8> = vec![];
-        let mut state: char = 'w';
-        let mut marker = 0;
-        let mut count = 0;
-        for (i, byte) in (file[start..]).iter().enumerate() {
-            match (state, *byte) {
-                ('w', 48..=57) => {
-                    marker = i;
-                    state = 'n'
-                }
-                ('n', 9..=13 | 32) => {
-                    if count % 2 == 0 || !double {
-                        body.push(basic::numfromascii(&file[marker..i]) as u8);
-                    }
-                    state = 'w';
-                    count += 1;
-                }
-                ('w' | 'n', _) => {}
-                (_, _) => panic!("you somehow broke this sort-of state machine"),
-            }
-        }
-        body
-    }
-}
-
-pub fn assemblepmfile(filestruct: PMapFile) -> Vec<u8> {
-    let mut file: Vec<u8> = vec![];
-    for byte in filestruct.header {
-        file.push(byte);
-    }
-    file.push(10);
-    for digit in basic::makeascii(filestruct.size.0 as usize) {
-        file.push(digit);
-    }
-    file.push(32);
-    for digit in basic::makeascii(filestruct.size.1 as usize) {
-        file.push(digit);
-    }
-    file.push(10);
-    for byte in filestruct.body {
-        file.push(byte);
-    }
-    file.push(10);
-    file
+    Ok(ImgBuffer::new((width, height), ctype, body))
 }
