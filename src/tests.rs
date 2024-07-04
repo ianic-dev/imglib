@@ -113,7 +113,20 @@ fn imgbufferlen() {
 
 #[test]
 fn colourtest() {
-    let testraw = pmap::parsepnm(fs::read("testimg/Praw.ppm").unwrap()).unwrap();
-    let testplain = pmap::parsepnm(fs::read("testimg/Pplain.ppm").unwrap()).unwrap();
-    assert_eq!(testraw, testplain);
+    let testraw = fs::read("testimg/Praw.ppm").unwrap();
+    let testplain = fs::read("testimg/Pplain.ppm").unwrap();
+    assert_eq!(
+        pmap::parsepnm(testraw.clone()).unwrap(),
+        pmap::parsepnm(testplain.clone()).unwrap()
+    );
+    let rewr_raw = pmap::writepnm(
+        pmap::makeppm(pmap::parsepnm(testraw.clone()).unwrap()),
+        false,
+    );
+    assert_eq!(testraw, rewr_raw);
+    let rewr_plain = pmap::writepnm(
+        pmap::makeppm(pmap::parsepnm(testplain.clone()).unwrap()),
+        true,
+    );
+    assert_eq!(testplain, rewr_plain);
 }

@@ -50,6 +50,17 @@ pub fn makepgm(anyimage: ImgBuffer) -> PNMap {
     PNMap::new(ident, image.size, image.body)
 }
 
+pub fn makeppm(anyimage: ImgBuffer) -> PNMap {
+    let image = anyimage.rmalpha();
+    let ident = PNMtype::PPM;
+    match image.ctype {
+        Colourtype::Grayscale => todo!(),
+        Colourtype::GrayAlpha => panic!("somehow, the bug appeared"),
+        Colourtype::Colour => PNMap::new(ident, image.size, image.body),
+        Colourtype::ColourAlpha => panic!("this isn't supposed to happen"),
+    }
+}
+
 pub fn writepnm(image: PNMap, plain: bool) -> Vec<u8> {
     let mut file: Vec<u8> = vec![80];
     match (&image.ident, plain) {

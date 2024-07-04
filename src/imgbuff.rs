@@ -54,6 +54,40 @@ impl ImgBuffer {
             }
         }
     }
+    pub fn tocolour(mut self) -> ImgBuffer {
+        match self.ctype {
+            Colourtype::Grayscale => {
+                let mut newbody: Vec<u8> = vec![];
+                for b in self.body {
+                    newbody.push(b);
+                    newbody.push(b);
+                    newbody.push(b);
+                }
+                self.body = newbody;
+                self.ctype = Colourtype::Colour;
+                self
+            }
+            Colourtype::GrayAlpha => {
+                let mut newbody: Vec<u8> = vec![];
+                let mut c = 0;
+                for b in self.body {
+                    if c & 1 == 0 {
+                        newbody.push(b);
+                        newbody.push(b);
+                        newbody.push(b);
+                    } else {
+                        newbody.push(b);
+                    }
+                    c += 1;
+                }
+                self.body = newbody;
+                self.ctype = Colourtype::Colour;
+                self
+            }
+            Colourtype::Colour => self,
+            Colourtype::ColourAlpha => self,
+        }
+    }
     pub fn rmalpha(mut self) -> ImgBuffer {
         match self.ctype {
             Colourtype::Grayscale => {}
