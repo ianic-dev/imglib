@@ -6,8 +6,13 @@ use super::PNMap;
 
 pub fn mkbodypbmplain(image: PNMap) -> Vec<u8> {
     let mut body: Vec<u8> = vec![];
+    let mut c = 1;
     for b in image.body {
         body.push(b + 48);
+        if c % 70 == 0 {
+            body.push(10);
+        }
+        c += 1;
     }
     body.push(10);
     body

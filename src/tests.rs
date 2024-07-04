@@ -110,3 +110,10 @@ fn imgbufferlen() {
     let pbm = makepbm(pimg, Some(128));
     assert_eq!(len2, pbm.body.len())
 }
+
+#[test]
+fn colourtest() {
+    let testraw = pmap::parsepnm(fs::read("Praw.ppm").unwrap()).unwrap();
+    let testplain = pmap::parsepnm(fs::read("Pplain.ppm").unwrap()).unwrap();
+    assert_eq!(testraw, testplain);
+}
