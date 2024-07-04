@@ -55,10 +55,10 @@ fn testrowpack() {
 fn pnmgrayfileparsing() {
     use std::fs;
     // checks the same file as different grayscale pnm files returns the same ImgBuffer
-    let plainfilepgm = pmap::parsepnm(fs::read("Pplain.pgm").unwrap()).unwrap();
-    let plainfilepbm = pmap::parsepnm(fs::read("Pplain.pbm").unwrap()).unwrap();
-    let rawfilepgm = pmap::parsepnm(fs::read("Praw.pgm").unwrap()).unwrap();
-    let rawfilepbm = pmap::parsepnm(fs::read("Praw.pbm").unwrap()).unwrap();
+    let plainfilepgm = pmap::parsepnm(fs::read("testimg/Pplain.pgm").unwrap()).unwrap();
+    let plainfilepbm = pmap::parsepnm(fs::read("testimg/Pplain.pbm").unwrap()).unwrap();
+    let rawfilepgm = pmap::parsepnm(fs::read("testimg/Praw.pgm").unwrap()).unwrap();
+    let rawfilepbm = pmap::parsepnm(fs::read("testimg/Praw.pbm").unwrap()).unwrap();
     assert_eq!(plainfilepbm, rawfilepbm);
     assert_eq!(rawfilepbm, rawfilepgm);
     assert_eq!(plainfilepgm, rawfilepgm);
@@ -66,10 +66,10 @@ fn pnmgrayfileparsing() {
 
 #[test]
 fn readwrite() {
-    let plainfilepgm = fs::read("Pplain.pgm").unwrap();
-    let plainfilepbm = fs::read("Pplain.pbm").unwrap();
-    let rawfilepgm = fs::read("Praw.pgm").unwrap();
-    let rawfilepbm = fs::read("Praw.pbm").unwrap();
+    let plainfilepgm = fs::read("testimg/Pplain.pgm").unwrap();
+    let plainfilepbm = fs::read("testimg/Pplain.pbm").unwrap();
+    let rawfilepgm = fs::read("testimg/Praw.pgm").unwrap();
+    let rawfilepbm = fs::read("testimg/Praw.pbm").unwrap();
     assert_eq!(
         plainfilepgm,
         pmap::writepnm(
@@ -102,7 +102,7 @@ fn readwrite() {
 
 #[test]
 fn imgbufferlen() {
-    let testimg = pmap::parsepnm(fs::read("colourtest.ppm").unwrap()).unwrap();
+    let testimg = pmap::parsepnm(fs::read("testimg/colourtest.ppm").unwrap()).unwrap();
     let testlen = testimg.body.len();
     let pimg = testimg.tograyscale();
     let len2 = pimg.body.len();
@@ -113,7 +113,7 @@ fn imgbufferlen() {
 
 #[test]
 fn colourtest() {
-    let testraw = pmap::parsepnm(fs::read("Praw.ppm").unwrap()).unwrap();
-    let testplain = pmap::parsepnm(fs::read("Pplain.ppm").unwrap()).unwrap();
+    let testraw = pmap::parsepnm(fs::read("testimg/Praw.ppm").unwrap()).unwrap();
+    let testplain = pmap::parsepnm(fs::read("testimg/Pplain.ppm").unwrap()).unwrap();
     assert_eq!(testraw, testplain);
 }
