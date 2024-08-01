@@ -2,6 +2,13 @@ use std::usize;
 
 use crate::Colourtype;
 
+pub enum Pixel {
+    Grayscale(&mut u8),
+    GrayAlpha([&mut u8; 2]),
+    Colour([&mut u8; 3]),
+    ColourAlpha([&mut u8; 4]),
+}
+
 #[derive(Debug, PartialEq)]
 pub struct ImgBuffer {
     pub size: (u32, u32),
@@ -114,5 +121,61 @@ impl ImgBuffer {
             }
         };
         self
+    }
+    pub fn addalpha(mut self) -> ImgBuffer {
+        match self.ctype {
+            Colourtype::Grayscale => {
+                let mut newbody: Vec<u8> = vec![];
+                for b in self.body.iter() {
+                    newbody.push(*b);
+                    newbody.push(0xff);
+                }
+                self.body = newbody;
+                self.ctype = Colourtype::GrayAlpha;
+            }
+            Colourtype::GrayAlpha => {}
+            Colourtype::Colour => {
+                let mut newbody: Vec<u8> = vec![];
+                for (i, b) in self.body.iter().enumerate() {
+                    newbody.push(*b);
+                    if i % 3 == 2 {
+                        newbody.push(0xff);
+                    }
+                }
+            }
+            Colourtype::ColourAlpha => {}
+        }
+        self
+    }
+    pub fn getpixelref(&mut self, mut x: u32, y: u32) -> Pixel {
+        x += y * self.size.0;
+        let x = x as usize;
+        match self.ctype {
+            Colourtype::Grayscale => Pixel::Grayscale(&mut self.body[x]),
+            Colourtype::GrayAlpha => Pixel::GrayAlpha(&mut self.body[2 * x..2 * x + 2]),
+            Colourtype::Colour => Pixel::Colour(&mut self.body[3 * x..3 * x + 3]),
+            Colourtype::ColourAlpha => Pixel::ColourAlpha(&mut self.body[4 * x..4 * x + 4]),
+        }
+    }
+    pub fn getbodyref(&mut self) -> Vec<Vec<Pixel>> {
+        let mut bodyrefs: Vec<_> = vec![];
+        for row_ind in 0..(self.size.1 as usize) {
+            let mut rowrefs: Vec<Pixel> = vec![];
+            for col_ind in 0..(self.size.0 as usize) {
+                let absind = col_ind + row_ind * self.size.0 as usize;
+                rowrefs.push(match self.ctype {
+                    Colourtype::Grayscale => Pixel::Grayscale(&mut self.body[absind]),
+                    Colourtype::GrayAlpha => {
+                        Pixel::GrayAlpha(&mut self.body[2 * absind..2 * absind + 2])
+                    }
+                    Colourtype::Colour => Pixel::Colour(&mut self.body[3 * absind..3 * absind + 3]),
+                    Colourtype::ColourAlpha => {
+                        Pixel::ColourAlpha(&mut self.body[4 * absind..4 * absind + 4])
+                    }
+                })
+            }
+            bodyrefs.push(rowrefs);
+        }
+        bodyrefs
     }
 }
